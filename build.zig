@@ -31,8 +31,9 @@ pub const OpenCL = struct {
     }
 
     pub fn link(self: @This(), b: *std.Build, comp: *std.Build.Step.Compile) void {
-        comp.addIncludePath(b.path(self.include_path));
-        comp.addLibraryPath(b.path(self.lib_path));
+        _ = b; // autofix
+        comp.addIncludePath(.{ .cwd_relative = self.include_path });
+        comp.addLibraryPath(.{ .cwd_relative = self.lib_path });
         comp.linkSystemLibrary("OpenCL");
     }
 };
@@ -79,7 +80,7 @@ pub const ClBlast = struct {
             cblast: ClBlast,
             lib: *std.Build.Step.Compile,
             pub fn addSource(self: *@This(), path: []const u8) void {
-                self.lib.addCSourceFile(.{ .file = self.cblast.build.path(self.cblast.build.pathJoin(&.{ thisPath(), path })), .flags = &.{} });
+                self.lib.addCSourceFile(.{ .file = .{ .cwd_relative = self.cblast.build.pathJoin(&.{ thisPath(), path }) }, .flags = &.{} });
             }
         };
         var c = Helper{ .cblast = res, .lib = lib };
@@ -96,7 +97,7 @@ pub const ClBlast = struct {
                     c.addSource("src/clblast_netlib_c.cpp");
                     //set(HEADERS ${HEADERS} include/clblast_netlib_c.h)
                 }
-                lib.addSystemIncludePath(b.path(opencl.include_path));
+                lib.addSystemIncludePath(.{ .cwd_relative = opencl.include_path });
             },
             .cuda => {
                 lib.defineCMacro("DCUDA_API", null);
@@ -106,9 +107,9 @@ pub const ClBlast = struct {
         }
         if (options.verbose) lib.defineCMacro("VERBOSE", null);
         if (options.target.result.os.tag == .windows and options.shared_lib) lib.defineCMacro("CLBLAST_DLL", null);
-        lib.addIncludePath(b.path(thisPath()));
-        lib.addIncludePath(b.path(b.pathJoin(&.{ thisPath(), "src" })));
-        lib.addIncludePath(b.path(b.pathJoin(&.{ thisPath(), "include" })));
+        lib.addIncludePath(.{ .cwd_relative = thisPath() });
+        lib.addIncludePath(.{ .cwd_relative = b.pathJoin(&.{ thisPath(), "src" }) });
+        lib.addIncludePath(.{ .cwd_relative = b.pathJoin(&.{ thisPath(), "include" }) });
 
         // ==================================================================================================
 
@@ -177,7 +178,7 @@ pub const ClBlast = struct {
     }
 
     pub fn link(self: @This(), comp: *std.Build.Step.Compile) void {
-        comp.addIncludePath(self.build.path(self.build.pathJoin(&.{ thisPath(), "include" })));
+        comp.addIncludePath(.{ .cwd_relative = self.build.pathJoin(&.{ thisPath(), "include" }) });
         comp.linkLibrary(self.lib);
     }
 
