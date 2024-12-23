@@ -12,13 +12,13 @@ pub const OpenCL = struct {
     // for use with: https://github.com/GPUOpen-LibrariesAndSDKs/OCL-SDK/releases
     pub fn fromOCL(
         b: *std.Build,
-        target: std.zig.CrossTarget,
+        target: std.Build.ResolvedTarget,
     ) ?OpenCL {
         const root = std.process.getEnvVarOwned(b.allocator, "OCL_ROOT") catch {
             std.log.scoped(.OpenCl).debug("No OCL root exists", .{});
             return null;
         };
-        const libp = b.pathJoin(&[_][]const u8{ root, "lib", @tagName(target.getCpuArch()) });
+        const libp = b.pathJoin(&[_][]const u8{ root, "lib", @tagName(target.result.cpu.arch) });
         if (std.fs.openDirAbsolute(libp, .{})) |*f| @constCast(f).close() else |_| {
             std.log.scoped(.OpenCl).warn("OpenCl.fromOCL() can't find path to libraries for selected cpuArch() at: {s}", .{libp});
             return null;
@@ -30,9 +30,9 @@ pub const OpenCL = struct {
         };
     }
 
-    pub fn link(self: @This(), comp: *std.Build.CompileStep) void {
-        comp.addIncludePath(.{ .path = self.include_path });
-        comp.addLibraryPath(.{ .path = self.lib_path });
+    pub fn link(self: @This(), b: *std.Build, comp: *std.Build.Step.Compile) void {
+        comp.addIncludePath(b.path(self.include_path));
+        comp.addLibraryPath(b.path(self.lib_path));
         comp.linkSystemLibrary("OpenCL");
     }
 };
@@ -48,7 +48,7 @@ pub const ClBlast = struct {
     };
 
     pub const Options = struct {
-        target: std.zig.CrossTarget,
+        target: std.Build.ResolvedTarget,
         optimize: std.builtin.Mode,
         backend: Backend,
 
@@ -61,7 +61,7 @@ pub const ClBlast = struct {
 
     build: *std.Build,
     options: Options,
-    lib: *std.Build.CompileStep,
+    lib: *std.Build.Step.Compile,
 
     pub fn build(b: *std.Build, options: Options) ClBlast {
         const lib_options = .{
@@ -77,9 +77,9 @@ pub const ClBlast = struct {
         };
         const Helper = struct {
             cblast: ClBlast,
-            lib: *std.Build.CompileStep,
+            lib: *std.Build.Step.Compile,
             pub fn addSource(self: *@This(), path: []const u8) void {
-                self.lib.addCSourceFile(.{ .file = .{ .path = self.cblast.build.pathJoin(&.{ thisPath(), path }) }, .flags = &.{} });
+                self.lib.addCSourceFile(.{ .file = self.cblast.build.path(self.cblast.build.pathJoin(&.{ thisPath(), path })), .flags = &.{} });
             }
         };
         var c = Helper{ .cblast = res, .lib = lib };
@@ -96,7 +96,7 @@ pub const ClBlast = struct {
                     c.addSource("src/clblast_netlib_c.cpp");
                     //set(HEADERS ${HEADERS} include/clblast_netlib_c.h)
                 }
-                lib.addSystemIncludePath(.{ .path = opencl.include_path });
+                lib.addSystemIncludePath(b.path(opencl.include_path));
             },
             .cuda => {
                 lib.defineCMacro("DCUDA_API", null);
@@ -105,10 +105,10 @@ pub const ClBlast = struct {
             },
         }
         if (options.verbose) lib.defineCMacro("VERBOSE", null);
-        if (options.target.getOsTag() == .windows and options.shared_lib) lib.defineCMacro("CLBLAST_DLL", null);
-        lib.addIncludePath(.{ .path = thisPath() });
-        lib.addIncludePath(.{ .path = b.pathJoin(&.{ thisPath(), "src" }) });
-        lib.addIncludePath(.{ .path = b.pathJoin(&.{ thisPath(), "include" }) });
+        if (options.target.result.os.tag == .windows and options.shared_lib) lib.defineCMacro("CLBLAST_DLL", null);
+        lib.addIncludePath(b.path(thisPath()));
+        lib.addIncludePath(b.path(b.pathJoin(&.{ thisPath(), "src" })));
+        lib.addIncludePath(b.path(b.pathJoin(&.{ thisPath(), "include" })));
 
         // ==================================================================================================
 
@@ -176,8 +176,8 @@ pub const ClBlast = struct {
         return res;
     }
 
-    pub fn link(self: @This(), comp: *std.Build.CompileStep) void {
-        comp.addIncludePath(.{ .path = self.build.pathJoin(&.{ thisPath(), "include" }) });
+    pub fn link(self: @This(), comp: *std.Build.Step.Compile) void {
+        comp.addIncludePath(self.build.path(self.build.pathJoin(&.{ thisPath(), "include" })));
         comp.linkLibrary(self.lib);
     }
 

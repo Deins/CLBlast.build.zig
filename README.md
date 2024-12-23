@@ -1,7 +1,7 @@
 Changes from Upstream   
 ================
 
-Adds [build.zig](./build.zig), [build.zon](./build.zig.zon) to add ability to compile the library with zig. And include CLBLast in zig projects as package. No tests or samples have been ported.
+Adds [build.zig](./build.zig), [build.zon](./build.zig.zon)  for `zig 0.13.0` to add ability to compile the library with zig. And include CLBLast in zig projects as package. No tests or samples have been ported.
 * OpenCL backend works on x86_64 windows with these [headers/libs](https://github.com/GPUOpen-LibrariesAndSDKs/OCL-SDK/). However is far from ideal in regards to finding OpenCl.
 * Cuda - unknown, most of the direct cmake rules is implemented. Probably also just needs debugging linking etc.
 * No, tests or samples built at the moment
